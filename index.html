@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Student Data Collection</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f2f5fa;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 900px;
+    margin: auto;
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px #0001;
+}
+
+h1 {
+    text-align: center;
+    color: #2457d6;
+}
+
+p {
+    text-align: center;
+    color: #666;
+}
+
+form {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+input, select, button {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 7px;
+    font-size: 15px;
+}
+
+button {
+    background: #2457d6;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #163da5;
+}
+
+.full {
+    grid-column: 1 / -1;
+}
+
+.search {
+    margin: 20px 0;
+}
+
+.table-box {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+th, td {
+    padding: 12px;
+    border: 1px solid #ddd;
+    text-align: center;
+}
+
+th {
+    background: #2457d6;
+    color: white;
+}
+
+.delete {
+    background: #dc3545;
+}
+
+@media (max-width: 600px) {
+    form {
+        grid-template-columns: 1fr;
+    }
+
+    .full {
+        grid-column: auto;
+    }
+
+    .container {
+        padding: 15px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Student Data Collection</h1>
+<p>Collect, Manage and Export Student Dataset</p>
+
+<form id="studentForm">
+
+<input type="text" id="name"
+placeholder="Student Name" required>
+
+<input type="number" id="age"
+placeholder="Age" min="1" max="120" required>
+
+<input type="text" id="course"
+placeholder="Course Name" required>
+
+<input type="number" id="marks"
+placeholder="Marks (0-100)" min="0" max="100"
+step="0.1" required>
+
+<button type="submit" class="full">
+Add Student
+</button>
+
+</form>
+
+<input type="text" id="search"
+class="search" placeholder="Search student...">
+
+<div class="table-box">
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Age</th>
+<th>Course</th>
+<th>Marks</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody id="studentData"></tbody>
+</table>
+</div>
+
+<br>
+
+<button onclick="downloadCSV()">
+Download Dataset (CSV)
+</button>
+
+</div>
+
+<script>
+let students = JSON.parse(
+    localStorage.getItem("students") || "[]"
+);
+
+function saveData() {
+    localStorage.setItem(
+        "students",
+        JSON.stringify(students)
+    );
+}
+
+function displayStudents(list = students) {
+    const tbody = document.getElementById("studentData");
+    tbody.innerHTML = "";
+
+    list.forEach(student => {
+        const row = document.createElement("tr");
+
+        [
+            student.id,
+            student.name,
+            student.age,
+            student.course,
+            student.marks
+        ].forEach(value => {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.appendChild(cell);
+        });
+
+        const actionCell = document.createElement("td");
+        const deleteButton = document.createElement("button");
+
+        deleteButton.textContent = "Delete";
+        deleteButton.className = "delete";
+
+        deleteButton.onclick = function() {
+            students = students.filter(
+                item => item.id !== student.id
+            );
+
+            saveData();
+            displayStudents();
+        };
+
+        actionCell.appendChild(deleteButton);
+        row.appendChild(actionCell);
+        tbody.appendChild(row);
+    });
+}
+
+document.getElementById("studentForm")
+.addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    const student = {
+        id: Date.now(),
+        name: document.getElementById("name").value.trim(),
+        age: Number(document.getElementById("age").value),
+        course: document.getElementById("course").value.trim(),
+        marks: Number(document.getElementById("marks").value)
+    };
+
+    if (!student.name || !student.course ||
+        student.age < 1 || student.marks < 0 ||
+        student.marks > 100) {
+        alert("Please enter valid details.");
+        return;
+    }
+
+    students.push(student);
+    saveData();
+    displayStudents();
+
+    this.reset();
+    alert("Student data collected successfully!");
+});
+
+document.getElementById("search")
+.addEventListener("input", function() {
+    const query = this.value.toLowerCase();
+
+    const filtered = students.filter(student =>
+        student.name.toLowerCase().includes(query) ||
+        student.course.toLowerCase().includes(query)
+    );
+
+    displayStudents(filtered);
+});
+
+function downloadCSV() {
+    if (students.length === 0) {
+        alert("No data available to download.");
+        return;
+    }
+
+    const headers = [
+        "ID", "Name", "Age", "Course", "Marks"
+    ];
+
+    const rows = students.map(student =>
+        [
+            student.id,
+            student.name,
+            student.age,
+            student.course,
+            student.marks
+        ].map(value =>
+            '"' + String(value).replace(/"/g, '""') + '"'
+        ).join(",")
+    );
+
+    const csv = [
+        headers.join(","),
+        ...rows
+    ].join("\r\n");
+
+    const blob = new Blob(
+        ["\uFEFF" + csv],
+        { type: "text/csv;charset=utf-8;" }
+    );
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "student_dataset.csv";
+    link.click();
+
+    URL.revokeObjectURL(url);
+}
+
+displayStudents();
+</script>
+
+</body>
+  </html>
